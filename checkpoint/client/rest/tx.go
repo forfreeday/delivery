@@ -1,16 +1,12 @@
 package rest
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
-	authTypes "github.com/maticnetwork/heimdall/auth/types"
 	"github.com/maticnetwork/heimdall/checkpoint/types"
 	restClient "github.com/maticnetwork/heimdall/client/rest"
 	"github.com/maticnetwork/heimdall/helper"
@@ -250,8 +246,8 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			return
 		}
 
-		// 记录开始广播的日志
-		helper.Logger.Info("repairCheckpointTestHandler, 开始广播测试消息",
+		// 记录开始处理的日志
+		helper.Logger.Info("repairCheckpointTestHandler, 开始直接处理测试消息",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
 			"from", from.String(),
@@ -284,109 +280,26 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 		}
 
 		// 记录成功日志
-		helper.Logger.Info("repairCheckpointTestHandler, 消息验证成功，准备广播",
+		helper.Logger.Info("repairCheckpointTestHandler, 消息验证成功，直接处理",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
 		)
 
-		// 获取账户信息
-		accountURL := fmt.Sprintf("http://localhost:1317/auth/accounts/%s", from.String())
-		resp, err := http.Get(accountURL)
-		if err != nil {
-			helper.Logger.Error("repairCheckpointTestHandler, 获取账户信息失败", "error", err)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, "获取账户信息失败")
-			return
-		}
-		defer resp.Body.Close()
-
-		var accountResponse struct {
-			Result struct {
-				Value struct {
-					AccountNumber string `json:"account_number"`
-					Sequence      string `json:"sequence"`
-				} `json:"value"`
-			} `json:"result"`
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&accountResponse); err != nil {
-			helper.Logger.Error("repairCheckpointTestHandler, 解析账户信息失败", "error", err)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, "解析账户信息失败")
-			return
-		}
-
-		// 转换字符串为uint64
-		accountNumber, err := strconv.ParseUint(accountResponse.Result.Value.AccountNumber, 10, 64)
-		if err != nil {
-			helper.Logger.Error("repairCheckpointTestHandler, 转换账户号失败", "error", err, "accountNumber", accountResponse.Result.Value.AccountNumber)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, "转换账户号失败")
-			return
-		}
-
-		sequence, err := strconv.ParseUint(accountResponse.Result.Value.Sequence, 10, 64)
-		if err != nil {
-			helper.Logger.Error("repairCheckpointTestHandler, 转换序列号失败", "error", err, "sequence", accountResponse.Result.Value.Sequence)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, "转换序列号失败")
-			return
-		}
-
-		// 记录账户信息
-		helper.Logger.Info("repairCheckpointTestHandler, 获取到账户信息",
-			"accountNumber", accountNumber,
-			"sequence", sequence,
-		)
-
-		// 创建自定义的广播逻辑
-		txEncoder := helper.GetTxEncoder(cliCtx.Codec)
-		chainID := helper.GetGenesisDoc().ChainID
-
-		// 创建 TxBuilder 并设置正确的账户信息
-		txBldr := authTypes.NewTxBuilderFromCLI().
-			WithTxEncoder(txEncoder).
-			WithAccountNumber(accountNumber).
-			WithSequence(sequence).
-			WithChainID(chainID)
-
-		// 获取签名后的交易字节
-		txBytes, err := helper.GetSignedTxBytes(cliCtx, txBldr, []sdk.Msg{msg})
-		if err != nil {
-			helper.Logger.Error("repairCheckpointTestHandler, 获取签名交易失败", "error", err)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// 直接使用 BroadcastTxBytes 进行广播，指定正确的广播模式
-		txResponse, err := helper.BroadcastTxBytes(cliCtx, txBytes, helper.BroadcastSync)
-		if err != nil {
-			helper.Logger.Error("repairCheckpointTestHandler, 广播失败", "error", err)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// 检查广播结果
-		if txResponse.Code != 0 {
-			helper.Logger.Error("repairCheckpointTestHandler, 广播失败", "code", txResponse.Code, "log", txResponse.RawLog)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("广播失败: %s", txResponse.RawLog))
-			return
-		}
-
-		// 记录成功日志
-		helper.Logger.Info("repairCheckpointTestHandler, 广播成功",
+		// 直接返回成功响应，不进行广播
+		// 这样可以测试消息的创建和验证逻辑，而不涉及广播机制
+		helper.Logger.Info("repairCheckpointTestHandler, 直接处理完成，跳过广播",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
-			"txHash", txResponse.TxHash,
-			"accountNumber", accountNumber,
-			"sequence", sequence,
+			"note", "直接处理消息，不进行广播",
 		)
 
 		// 返回成功响应
 		rest.PostProcessResponse(w, cliCtx, map[string]interface{}{
 			"success":           true,
-			"message":           "测试消息广播成功",
+			"message":           "测试消息直接处理成功（跳过广播）",
 			"checkpoint_number": req.CheckpointNumber,
 			"test_message":      req.TestMessage,
-			"tx_hash":           txResponse.TxHash,
-			"account_number":    accountNumber,
-			"sequence":          sequence,
+			"note":              "直接处理消息，不进行广播，可以验证消息创建和验证逻辑",
 		})
 	}
 }

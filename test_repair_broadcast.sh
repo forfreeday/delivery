@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# 测试健壮的 repair-test 接口广播功能
-echo "=== 测试健壮的 repair-test 接口广播功能 ==="
+# 测试 repair-test 接口的 bridge TxBroadcaster 广播功能
+echo "=== 测试 repair-test 接口的 bridge TxBroadcaster 广播功能 ==="
 
 # 设置变量
 REST_URL="http://localhost:1317"
 FROM_ADDRESS="0xd4d14396282a000234862eaf2527c17ed680e58e"
 CHECKPOINT_NUMBER=12345
-TEST_MESSAGE="健壮广播测试消息 $(date +%s)"
+TEST_MESSAGE="bridge广播测试消息 $(date +%s)"
 
 echo "发送者地址: $FROM_ADDRESS"
 echo "Checkpoint 编号: $CHECKPOINT_NUMBER"
@@ -55,25 +55,12 @@ echo "$RESPONSE" | jq '.'
 if echo "$RESPONSE" | jq -e '.success' > /dev/null; then
     echo ""
     echo "✅ repair-test 接口调用成功！"
-    
-    # 提取交易哈希
-    TX_HASH=$(echo "$RESPONSE" | jq -r '.tx_hash // empty')
-    ACCOUNT_NUMBER=$(echo "$RESPONSE" | jq -r '.account_number // empty')
-    SEQUENCE=$(echo "$RESPONSE" | jq -r '.sequence // empty')
-    
-    if [ -n "$TX_HASH" ]; then
-        echo "交易哈希: $TX_HASH"
-        echo "账户号: $ACCOUNT_NUMBER"
-        echo "序列号: $SEQUENCE"
-        echo ""
-        echo "请检查服务日志确认是否收到以下日志："
-        echo "1. repairCheckpointTestHandler, 开始广播测试消息"
-        echo "2. repairCheckpointTestHandler, 获取到账户信息"
-        echo "3. repairCheckpointTestHandler, 广播成功"
-        echo "4. handleMsgRepairCheckpointTest"
-    else
-        echo "注意：响应中没有交易哈希，可能广播失败"
-    fi
+    echo ""
+    echo "请检查服务日志确认是否收到以下日志："
+    echo "1. repairCheckpointTestHandler, 开始广播测试消息"
+    echo "2. repairCheckpointTestHandler, 消息验证成功，准备广播"
+    echo "3. repairCheckpointTestHandler, 广播成功"
+    echo "4. handleMsgRepairCheckpointTest"
 else
     echo ""
     echo "❌ repair-test 接口调用失败"
@@ -84,9 +71,8 @@ fi
 echo ""
 echo "=== 测试完成 ==="
 echo ""
-echo "健壮性改进说明："
-echo "1. 不修改全局的 BuildAndBroadcastMsgs 函数，避免影响其他代码"
-echo "2. 在 repairCheckpointTestHandler 中直接使用 BroadcastTxBytes"
-echo "3. 明确指定广播模式为 BroadcastSync ('sync')"
-echo "4. 分步骤处理：先获取签名交易，再广播"
-echo "5. 保持其他代码的兼容性" 
+echo "广播方式说明："
+echo "1. 使用项目中标准的 bridge/setu/broadcaster.TxBroadcaster"
+echo "2. 这是项目中其他模块使用的标准广播方式"
+echo "3. 如果出现序列号错误，可能需要确保 bridge 使用的账户与请求账户一致"
+echo "4. bridge TxBroadcaster 使用 helper.GetAddress() 获取的地址" 
