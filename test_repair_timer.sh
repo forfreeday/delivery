@@ -33,7 +33,7 @@ REQUEST_BODY=$(cat <<EOF
     ],
     "simulate": false
   },
-  "checkpoint_number": $CHECKPOINT_NUMBER,
+  "checkpoint_number": "$CHECKPOINT_NUMBER",
   "from": "$FROM_ADDRESS",
   "test_message": "$TEST_MESSAGE"
 }
