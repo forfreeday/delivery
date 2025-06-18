@@ -26,7 +26,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-fixed \\
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123
+    "checkpoint_number": "60191"
   }'
 EOF
 echo ""
@@ -34,7 +34,7 @@ echo "预期响应:"
 cat << EOF
 {
   "success": true,
-  "checkpoint_number": 123,
+  "checkpoint_number": "60191",
   "from": "$FROM_ADDRESS",
   "message": "补录消息已成功广播到链上"
 }
@@ -54,7 +54,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-test-fixed \\
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123,
+    "checkpoint_number": "60191",
     "test_message": "测试消息"
   }'
 EOF
@@ -63,7 +63,7 @@ echo "预期响应:"
 cat << EOF
 {
   "success": true,
-  "checkpoint_number": 123,
+  "checkpoint_number": "60191",
   "from": "$FROM_ADDRESS",
   "message": "补录消息已成功广播到链上"
 }
@@ -83,7 +83,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-optimized \\
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123
+    "checkpoint_number": "60191"
   }'
 EOF
 echo ""
@@ -97,7 +97,7 @@ cat << EOF
         "type": "checkpoint/MsgRepairCheckpoint",
         "value": {
           "from": "$FROM_ADDRESS",
-          "checkpoint_number": "123",
+          "checkpoint_number": "60191",
           "root_chain": "tron",
           "checkpoint": {...}
         }
@@ -127,7 +127,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-test-optimized \\
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123,
+    "checkpoint_number": "60191",
     "test_message": "测试消息"
   }'
 EOF
@@ -142,7 +142,7 @@ cat << EOF
         "type": "checkpoint/MsgRepairCheckpointTest",
         "value": {
           "from": "$FROM_ADDRESS",
-          "checkpoint_number": "123",
+          "checkpoint_number": "60191",
           "root_chain": "tron",
           "test_message": "测试消息",
           "checkpoint": {...}

@@ -1,14 +1,17 @@
 #!/bin/bash
 
-# 简化的路由测试脚本
-# 只测试路由是否可以访问，不依赖具体的地址配置
+# 使用真实地址测试接口
+# 使用您提供的节点地址进行测试
 
 set -e
 
 # 配置
 HEIMDALL_REST="http://localhost:1317"
+CHAIN_ID="delivery-22125"
+FROM_ADDRESS="0xD4D14396282A000234862EAF2527C17ED680E58E"
 
-echo "=== 测试新注册的路由可访问性 ==="
+echo "=== 使用真实地址测试接口 ==="
+echo "节点地址: $FROM_ADDRESS"
 echo ""
 
 # 测试1: repair-fixed 路由
@@ -18,8 +21,8 @@ RESPONSE=$(curl -X POST $HEIMDALL_REST/checkpoint/repair-fixed \
   -H "Content-Type: application/json" \
   -d '{
     "base_req": {
-      "from": "0x1234567890123456789012345678901234567890",
-      "chain_id": "delivery-22125",
+      "from": "'$FROM_ADDRESS'",
+      "chain_id": "'$CHAIN_ID'",
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
@@ -38,8 +41,8 @@ RESPONSE=$(curl -X POST $HEIMDALL_REST/checkpoint/repair-test-fixed \
   -H "Content-Type: application/json" \
   -d '{
     "base_req": {
-      "from": "0x1234567890123456789012345678901234567890",
-      "chain_id": "delivery-22125",
+      "from": "'$FROM_ADDRESS'",
+      "chain_id": "'$CHAIN_ID'",
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
@@ -59,8 +62,8 @@ RESPONSE=$(curl -X POST $HEIMDALL_REST/checkpoint/repair-optimized \
   -H "Content-Type: application/json" \
   -d '{
     "base_req": {
-      "from": "0x1234567890123456789012345678901234567890",
-      "chain_id": "delivery-22125",
+      "from": "'$FROM_ADDRESS'",
+      "chain_id": "'$CHAIN_ID'",
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
@@ -79,8 +82,8 @@ RESPONSE=$(curl -X POST $HEIMDALL_REST/checkpoint/repair-test-optimized \
   -H "Content-Type: application/json" \
   -d '{
     "base_req": {
-      "from": "0x1234567890123456789012345678901234567890",
-      "chain_id": "delivery-22125",
+      "from": "'$FROM_ADDRESS'",
+      "chain_id": "'$CHAIN_ID'",
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
@@ -95,17 +98,22 @@ echo ""
 
 echo "=== 测试结果分析 ==="
 echo ""
-echo "如果看到以下情况，说明路由注册成功："
+echo "预期结果："
 echo ""
-echo "✅ 成功情况："
-echo "  - HTTP状态码不是404"
-echo "  - 返回JSON响应（可能是错误信息，但说明路由存在）"
+echo "repair-fixed 和 repair-test-fixed:"
+echo "  ✅ 成功: {\"success\": true, \"checkpoint_number\": \"60191\", ...}"
+echo "  ❌ 失败: 错误信息或404"
 echo ""
-echo "❌ 失败情况："
-echo "  - HTTP状态码是404"
-echo "  - 连接被拒绝"
+echo "repair-optimized 和 repair-test-optimized:"
+echo "  ✅ 成功: {\"type\": \"cosmos-sdk/StdTx\", ...}"
+echo "  ❌ 失败: 错误信息或404"
 echo ""
-echo "如果所有路由都返回404，请："
-echo "1. 确认Heimdall服务正在运行"
-echo "2. 重新编译并重启服务"
-echo "3. 检查路由注册代码是否正确" 
+echo "如果看到成功响应，说明："
+echo "1. 路由注册成功"
+echo "2. JSON格式正确"
+echo "3. 处理函数正常工作"
+echo ""
+echo "如果看到错误，请检查："
+echo "1. 服务是否正在运行"
+echo "2. 代码是否已重新编译"
+echo "3. 服务端日志中的详细错误信息" 

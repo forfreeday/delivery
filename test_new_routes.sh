@@ -8,9 +8,10 @@ set -e
 # 配置
 HEIMDALL_REST="http://localhost:1317"
 CHAIN_ID="delivery-22125"
-FROM_ADDRESS="0x..."  # 请替换为您的地址
+FROM_ADDRESS="0xD4D14396282A000234862EAF2527C17ED680E58E"
 
 echo "=== 测试新注册的路由 ==="
+echo "节点地址: $FROM_ADDRESS"
 echo ""
 
 # 测试1: 检查 repair-fixed 路由
@@ -25,7 +26,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-fixed \
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123
+    "checkpoint_number": "60191"
   }' \
   -w "\nHTTP状态码: %{http_code}\n" \
   -s
@@ -43,7 +44,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-test-fixed \
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123,
+    "checkpoint_number": "60191",
     "test_message": "测试消息"
   }' \
   -w "\nHTTP状态码: %{http_code}\n" \
@@ -62,7 +63,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-optimized \
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123
+    "checkpoint_number": "60191"
   }' \
   -w "\nHTTP状态码: %{http_code}\n" \
   -s
@@ -80,7 +81,7 @@ curl -X POST $HEIMDALL_REST/checkpoint/repair-test-optimized \
       "gas": "200000",
       "gas_adjustment": "1.2"
     },
-    "checkpoint_number": 123,
+    "checkpoint_number": "60191",
     "test_message": "测试消息"
   }' \
   -w "\nHTTP状态码: %{http_code}\n" \
