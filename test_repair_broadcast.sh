@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# 测试 repair-test 接口的真正广播功能
-echo "=== 测试 repair-test 接口的真正广播功能 ==="
+# 测试健壮的 repair-test 接口广播功能
+echo "=== 测试健壮的 repair-test 接口广播功能 ==="
 
 # 设置变量
 REST_URL="http://localhost:1317"
 FROM_ADDRESS="0xd4d14396282a000234862eaf2527c17ed680e58e"
 CHECKPOINT_NUMBER=12345
-TEST_MESSAGE="真正广播测试消息 $(date +%s)"
+TEST_MESSAGE="健壮广播测试消息 $(date +%s)"
 
 echo "发送者地址: $FROM_ADDRESS"
 echo "Checkpoint 编号: $CHECKPOINT_NUMBER"
@@ -84,8 +84,9 @@ fi
 echo ""
 echo "=== 测试完成 ==="
 echo ""
-echo "改进说明："
-echo "1. 现在使用正确的账户信息进行广播"
-echo "2. 通过REST API获取账户的account_number和sequence"
-echo "3. 使用这些信息创建TxBuilder"
-echo "4. 调用helper.BuildAndBroadcastMsgs进行真正广播" 
+echo "健壮性改进说明："
+echo "1. 不修改全局的 BuildAndBroadcastMsgs 函数，避免影响其他代码"
+echo "2. 在 repairCheckpointTestHandler 中直接使用 BroadcastTxBytes"
+echo "3. 明确指定广播模式为 BroadcastSync ('sync')"
+echo "4. 分步骤处理：先获取签名交易，再广播"
+echo "5. 保持其他代码的兼容性" 

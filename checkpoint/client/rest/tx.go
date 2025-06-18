@@ -346,8 +346,16 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			WithSequence(sequence).
 			WithChainID(chainID)
 
-		// 使用 helper.BuildAndBroadcastMsgs 进行广播
-		txResponse, err := helper.BuildAndBroadcastMsgs(cliCtx, txBldr, []sdk.Msg{msg})
+		// 获取签名后的交易字节
+		txBytes, err := helper.GetSignedTxBytes(cliCtx, txBldr, []sdk.Msg{msg})
+		if err != nil {
+			helper.Logger.Error("repairCheckpointTestHandler, 获取签名交易失败", "error", err)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// 直接使用 BroadcastTxBytes 进行广播，指定正确的广播模式
+		txResponse, err := helper.BroadcastTxBytes(cliCtx, txBytes, helper.BroadcastSync)
 		if err != nil {
 			helper.Logger.Error("repairCheckpointTestHandler, 广播失败", "error", err)
 			rest.WriteErrorResponse(w, http.StatusInternalServerError, err.Error())
