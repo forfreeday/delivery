@@ -7,7 +7,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
-	"github.com/maticnetwork/heimdall/bridge/setu/broadcaster"
 	"github.com/maticnetwork/heimdall/checkpoint/types"
 	restClient "github.com/maticnetwork/heimdall/client/rest"
 	"github.com/maticnetwork/heimdall/helper"
@@ -218,32 +217,15 @@ func repairCheckpointHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			return
 		}
 
-		// 创建 TxBroadcaster 实例，使用 bridge 中的方式
-		txBroadcaster := broadcaster.NewTxBroadcaster(cliCtx.Codec)
-
-		// 使用 TxBroadcaster 广播消息到 Heimdall
-		err := txBroadcaster.BroadcastToHeimdall(msg)
-		if err != nil {
-			helper.Logger.Error("repairCheckpointHandler, 广播失败", "error", err)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, "广播失败: "+err.Error())
-			return
-		}
-
-		// 记录成功日志
-		helper.Logger.Info("repairCheckpointHandler, 广播成功",
+		// 使用标准的 REST 方式生成未签名交易，而不是直接广播
+		// 这样可以避免序列号和链ID的问题
+		helper.Logger.Info("repairCheckpointHandler, 生成未签名交易",
 			"checkpointNumber", req.CheckpointNumber,
 			"from", from.String(),
 		)
 
-		// 返回成功响应
-		rest.PostProcessResponse(w, cliCtx, map[string]interface{}{
-			"success":           true,
-			"message":           "checkpoint 补录消息广播成功",
-			"checkpoint_number": req.CheckpointNumber,
-			"checkpoint":        testCheckpoint,
-			"from":              from.String(),
-			"note":              "使用 TxBroadcaster 广播到 Heimdall 链上",
-		})
+		// 使用 WriteGenerateStdTxResponse 生成未签名交易
+		restClient.WriteGenerateStdTxResponse(w, cliCtx, req.BaseReq, []sdk.Msg{msg})
 	}
 }
 
@@ -273,7 +255,7 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 		}
 
 		// 记录开始处理的日志
-		helper.Logger.Info("repairCheckpointTestHandler, 开始广播测试消息",
+		helper.Logger.Info("repairCheckpointTestHandler, 开始处理测试消息",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
 			"from", from.String(),
@@ -305,33 +287,16 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			return
 		}
 
-		// 创建 TxBroadcaster 实例，使用 bridge 中的方式
-		txBroadcaster := broadcaster.NewTxBroadcaster(cliCtx.Codec)
-
-		// 使用 TxBroadcaster 广播消息到 Heimdall
-		err := txBroadcaster.BroadcastToHeimdall(msg)
-		if err != nil {
-			helper.Logger.Error("repairCheckpointTestHandler, 广播失败", "error", err)
-			rest.WriteErrorResponse(w, http.StatusInternalServerError, "广播失败: "+err.Error())
-			return
-		}
-
-		// 记录成功日志
-		helper.Logger.Info("repairCheckpointTestHandler, 广播成功",
+		// 使用标准的 REST 方式生成未签名交易，而不是直接广播
+		// 这样可以避免序列号和链ID的问题
+		helper.Logger.Info("repairCheckpointTestHandler, 生成未签名交易",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
 			"from", from.String(),
 		)
 
-		// 返回成功响应
-		rest.PostProcessResponse(w, cliCtx, map[string]interface{}{
-			"success":           true,
-			"message":           "测试消息广播成功",
-			"checkpoint_number": req.CheckpointNumber,
-			"test_message":      req.TestMessage,
-			"from":              from.String(),
-			"note":              "使用 TxBroadcaster 广播到 Heimdall 链上",
-		})
+		// 使用 WriteGenerateStdTxResponse 生成未签名交易
+		restClient.WriteGenerateStdTxResponse(w, cliCtx, req.BaseReq, []sdk.Msg{msg})
 	}
 }
 
