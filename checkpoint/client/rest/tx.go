@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
+	"github.com/maticnetwork/heimdall/bridge/setu/broadcaster"
 	"github.com/maticnetwork/heimdall/checkpoint/types"
 	restClient "github.com/maticnetwork/heimdall/client/rest"
 	"github.com/maticnetwork/heimdall/helper"
@@ -187,7 +188,7 @@ func repairCheckpointHandler(cliCtx context.CLIContext) http.HandlerFunc {
 		}
 
 		// 记录开始操作的日志
-		helper.Logger.Info("repairCheckpointHandler, 开始直接数据库操作",
+		helper.Logger.Info("repairCheckpointHandler, 开始广播补录消息",
 			"checkpointNumber", req.CheckpointNumber,
 			"from", from.String(),
 		)
@@ -202,21 +203,46 @@ func repairCheckpointHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			TimeStamp:  1749546051,
 		}
 
-		// 直接返回成功响应，不进行广播
-		// 注意：这里应该直接操作数据库，但由于 REST 接口的限制，
-		// 我们暂时返回成功响应，实际的数据库操作需要在其他地方实现
-		helper.Logger.Info("repairCheckpointHandler, 直接数据库操作完成",
+		// 创建 MsgRepairCheckpoint 消息
+		msg := types.NewMsgRepairCheckpoint(
+			from,
+			req.CheckpointNumber,
+			"tron", // rootChain
+			testCheckpoint,
+		)
+
+		// 验证消息
+		if err := msg.ValidateBasic(); err != nil {
+			helper.Logger.Error("repairCheckpointHandler, 消息验证失败", "error", err)
+			rest.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		// 创建 TxBroadcaster 实例，使用 bridge 中的方式
+		txBroadcaster := broadcaster.NewTxBroadcaster(cliCtx.Codec)
+
+		// 使用 TxBroadcaster 广播消息到 Heimdall
+		err := txBroadcaster.BroadcastToHeimdall(msg)
+		if err != nil {
+			helper.Logger.Error("repairCheckpointHandler, 广播失败", "error", err)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, "广播失败: "+err.Error())
+			return
+		}
+
+		// 记录成功日志
+		helper.Logger.Info("repairCheckpointHandler, 广播成功",
 			"checkpointNumber", req.CheckpointNumber,
-			"checkpoint", testCheckpoint,
+			"from", from.String(),
 		)
 
 		// 返回成功响应
 		rest.PostProcessResponse(w, cliCtx, map[string]interface{}{
 			"success":           true,
-			"message":           "checkpoint 补录请求已接收（直接数据库操作）",
+			"message":           "checkpoint 补录消息广播成功",
 			"checkpoint_number": req.CheckpointNumber,
 			"checkpoint":        testCheckpoint,
-			"note":              "此接口直接操作数据库，不进行广播",
+			"from":              from.String(),
+			"note":              "使用 TxBroadcaster 广播到 Heimdall 链上",
 		})
 	}
 }
@@ -247,7 +273,7 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 		}
 
 		// 记录开始处理的日志
-		helper.Logger.Info("repairCheckpointTestHandler, 开始直接处理测试消息",
+		helper.Logger.Info("repairCheckpointTestHandler, 开始广播测试消息",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
 			"from", from.String(),
@@ -279,27 +305,32 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			return
 		}
 
-		// 记录成功日志
-		helper.Logger.Info("repairCheckpointTestHandler, 消息验证成功，直接处理",
-			"checkpointNumber", req.CheckpointNumber,
-			"testMessage", req.TestMessage,
-		)
+		// 创建 TxBroadcaster 实例，使用 bridge 中的方式
+		txBroadcaster := broadcaster.NewTxBroadcaster(cliCtx.Codec)
 
-		// 直接返回成功响应，不进行广播
-		// 这样可以测试消息的创建和验证逻辑，而不涉及广播机制
-		helper.Logger.Info("repairCheckpointTestHandler, 直接处理完成，跳过广播",
+		// 使用 TxBroadcaster 广播消息到 Heimdall
+		err := txBroadcaster.BroadcastToHeimdall(msg)
+		if err != nil {
+			helper.Logger.Error("repairCheckpointTestHandler, 广播失败", "error", err)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, "广播失败: "+err.Error())
+			return
+		}
+
+		// 记录成功日志
+		helper.Logger.Info("repairCheckpointTestHandler, 广播成功",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
-			"note", "直接处理消息，不进行广播",
+			"from", from.String(),
 		)
 
 		// 返回成功响应
 		rest.PostProcessResponse(w, cliCtx, map[string]interface{}{
 			"success":           true,
-			"message":           "测试消息直接处理成功（跳过广播）",
+			"message":           "测试消息广播成功",
 			"checkpoint_number": req.CheckpointNumber,
 			"test_message":      req.TestMessage,
-			"note":              "直接处理消息，不进行广播，可以验证消息创建和验证逻辑",
+			"from":              from.String(),
+			"note":              "使用 TxBroadcaster 广播到 Heimdall 链上",
 		})
 	}
 }
