@@ -1,90 +1,130 @@
 #!/bin/bash
 
-# BTTC Checkpoint 补录测试脚本 - 修复版本
-# 解决签名验证失败问题
+# 测试修复后的 checkpoint 补录广播机制
+echo "=== 测试修复后的 checkpoint 补录广播机制 ==="
 
-ADDRESS="0xd4d14396282a000234862eaf2527c17ed680e58e"
-CHAIN_ID="22125"
+# 设置变量
+REST_URL="http://localhost:1317"
+ACCOUNT_ADDRESS="0xd4d14396282a000234862eaf2527c17ed680e58e"
 CHECKPOINT_NUMBER="60191"
+TEST_MESSAGE="测试修复后的广播机制_$(date +%s)"
 
-echo "=== BTTC Checkpoint 补录测试 - 修复版本 ==="
-echo "地址: $ADDRESS"
-echo "链ID: $CHAIN_ID"
-echo "Checkpoint编号: $CHECKPOINT_NUMBER"
-echo ""
+echo "发送者地址: $ACCOUNT_ADDRESS"
+echo "Checkpoint 编号: $CHECKPOINT_NUMBER"
+echo "测试消息: $TEST_MESSAGE"
 
-# 第一步：获取账户当前序列号
-echo "1. 获取账户当前序列号..."
-ACCOUNT_INFO=$(curl -s "http://localhost:1317/auth/accounts/$ADDRESS/sequence")
-echo "账户信息: $ACCOUNT_INFO"
-
-# 解析序列号
-SEQUENCE=$(echo $ACCOUNT_INFO | jq -r '.sequence // 0')
-ACCOUNT_NUMBER=$(echo $ACCOUNT_INFO | jq -r '.account_number // 0')
-
-echo "当前序列号: $SEQUENCE"
-echo "账户编号: $ACCOUNT_NUMBER"
-echo ""
-
-# 第二步：使用正确的序列号发送测试请求
-echo "2. 发送修复后的测试请求..."
-
-# 构建请求体，包含正确的序列号
+# 构建请求体
 REQUEST_BODY=$(cat <<EOF
 {
-  "base_req": {
-    "from": "$ADDRESS",
-    "chain_id": "$CHAIN_ID",
-    "gas": "200000",
-    "gas_adjustment": "1.2",
-    "fees": [],
-    "gas_prices": [],
-    "account_number": "$ACCOUNT_NUMBER",
-    "sequence": "$SEQUENCE"
-  },
-  "checkpoint_number": "$CHECKPOINT_NUMBER",
-  "from": "$ADDRESS",
-  "test_message": "测试修复后的广播机制 - 使用正确序列号"
+    "base_req": {
+        "from": "$ACCOUNT_ADDRESS",
+        "chain_id": "heimdall-22125",
+        "gas": "200000",
+        "gas_adjustment": "1.2",
+        "fees": [],
+        "simulate": false
+    },
+    "checkpoint_number": "$CHECKPOINT_NUMBER",
+    "from": "$ACCOUNT_ADDRESS",
+    "test_message": "$TEST_MESSAGE"
 }
 EOF
 )
 
+echo ""
 echo "请求体:"
 echo "$REQUEST_BODY" | jq '.'
+
 echo ""
+echo "发送请求到 repair-test 接口（使用 TxBroadcaster 广播）..."
 
 # 发送请求
-echo "3. 发送HTTP请求..."
-RESPONSE=$(curl -X POST http://localhost:1317/checkpoint/repair-test \
-  -H 'Content-Type: application/json' \
-  -d "$REQUEST_BODY" \
-  -s)
+RESPONSE=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d "$REQUEST_BODY" \
+    "$REST_URL/checkpoint/repair-test")
 
 echo "响应:"
 echo "$RESPONSE" | jq '.'
-echo ""
 
 # 检查响应
-if echo "$RESPONSE" | jq -e '.txhash' > /dev/null; then
-    echo "✅ 请求成功！交易哈希: $(echo $RESPONSE | jq -r '.txhash')"
-    
-    # 等待交易确认
+if echo "$RESPONSE" | jq -e '.success' > /dev/null; then
     echo ""
-    echo "4. 等待交易确认..."
-    sleep 3
-    
-    # 查询交易状态
-    TXHASH=$(echo $RESPONSE | jq -r '.txhash')
-    echo "查询交易状态: $TXHASH"
-    
-    TX_STATUS=$(curl -s "http://localhost:1317/cosmos/tx/v1beta1/txs/$TXHASH")
-    echo "交易状态:"
-    echo "$TX_STATUS" | jq '.'
-    
+    echo "✅ repair-test 接口调用成功！"
+    echo "checkpoint_number: $(echo "$RESPONSE" | jq -r '.checkpoint_number')"
+    echo "test_message: $(echo "$RESPONSE" | jq -r '.test_message')"
+    echo "from: $(echo "$RESPONSE" | jq -r '.from')"
+    echo ""
+    echo "请检查服务日志，应该能看到以下日志："
+    echo "1. repairCheckpointTestHandler, 开始广播测试消息"
+    echo "2. repairCheckpointTestHandler, 广播成功"
+    echo "3. TxBroadcaster 相关的广播日志"
+    echo "4. handleMsgRepairCheckpointTest 中的日志"
 else
-    echo "❌ 请求失败！"
-    echo "错误信息: $(echo $RESPONSE | jq -r '.raw_log // .message // "未知错误"')"
+    echo ""
+    echo "❌ repair-test 接口调用失败"
+    echo "错误信息:"
+    echo "$RESPONSE" | jq -r '.error // .message // "未知错误"'
 fi
 
 echo ""
-echo "=== 测试完成 ===" 
+echo "=== 测试 repair 接口（实际补录）==="
+
+# 构建 repair 请求体
+REPAIR_REQUEST_BODY=$(cat <<EOF
+{
+    "base_req": {
+        "from": "$ACCOUNT_ADDRESS",
+        "chain_id": "heimdall-22125",
+        "gas": "200000",
+        "gas_adjustment": "1.2",
+        "fees": [],
+        "simulate": false
+    },
+    "checkpoint_number": "$CHECKPOINT_NUMBER",
+    "from": "$ACCOUNT_ADDRESS"
+}
+EOF
+)
+
+echo "repair 请求体:"
+echo "$REPAIR_REQUEST_BODY" | jq '.'
+
+echo ""
+echo "发送请求到 repair 接口..."
+
+# 发送 repair 请求
+REPAIR_RESPONSE=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d "$REPAIR_REQUEST_BODY" \
+    "$REST_URL/checkpoint/repair")
+
+echo "repair 响应:"
+echo "$REPAIR_RESPONSE" | jq '.'
+
+# 检查 repair 响应
+if echo "$REPAIR_RESPONSE" | jq -e '.success' > /dev/null; then
+    echo ""
+    echo "✅ repair 接口调用成功！"
+    echo "checkpoint_number: $(echo "$REPAIR_RESPONSE" | jq -r '.checkpoint_number')"
+    echo "from: $(echo "$REPAIR_RESPONSE" | jq -r '.from')"
+    echo ""
+    echo "请检查服务日志，应该能看到以下日志："
+    echo "1. repairCheckpointHandler, 开始广播补录消息"
+    echo "2. repairCheckpointHandler, 广播成功"
+    echo "3. TxBroadcaster 相关的广播日志"
+    echo "4. handleMsgRepairCheckpoint 中的日志"
+else
+    echo ""
+    echo "❌ repair 接口调用失败"
+    echo "错误信息:"
+    echo "$REPAIR_RESPONSE" | jq -r '.error // .message // "未知错误"'
+fi
+
+echo ""
+echo "=== 测试完成 ==="
+echo "总结："
+echo "1. 两个接口现在都使用 TxBroadcaster 进行广播"
+echo "2. 不再直接操作数据库，而是通过标准的消息广播机制"
+echo "3. 消息会被广播到 Heimdall 链上，由相应的 handler 处理"
+echo "4. 可以通过日志确认广播是否成功" 
