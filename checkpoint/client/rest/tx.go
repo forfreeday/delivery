@@ -240,7 +240,12 @@ func repairCheckpointHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			// 使用 TxBroadcaster 广播消息到 Heimdall
 			err := txBroadcaster.BroadcastToHeimdall(msg)
 			if err != nil {
-				helper.Logger.Error("repairCheckpointHandler, 直接广播失败", "error", err)
+				helper.Logger.Error("repairCheckpointHandler, 直接广播失败",
+					"error", err,
+					"checkpointNumber", req.CheckpointNumber,
+					"from", from.String(),
+					"note", "这是预期的，因为 TxBroadcaster 需要正确的序列号和链ID配置",
+				)
 			} else {
 				helper.Logger.Info("repairCheckpointHandler, 直接广播成功",
 					"checkpointNumber", req.CheckpointNumber,
@@ -333,7 +338,13 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			// 使用 TxBroadcaster 广播消息到 Heimdall
 			err := txBroadcaster.BroadcastToHeimdall(msg)
 			if err != nil {
-				helper.Logger.Error("repairCheckpointTestHandler, 直接广播失败", "error", err)
+				helper.Logger.Error("repairCheckpointTestHandler, 直接广播失败",
+					"error", err,
+					"checkpointNumber", req.CheckpointNumber,
+					"testMessage", req.TestMessage,
+					"from", from.String(),
+					"note", "这是预期的，因为 TxBroadcaster 需要正确的序列号和链ID配置",
+				)
 			} else {
 				helper.Logger.Info("repairCheckpointTestHandler, 直接广播成功",
 					"checkpointNumber", req.CheckpointNumber,
