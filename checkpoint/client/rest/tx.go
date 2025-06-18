@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"github.com/maticnetwork/heimdall/app"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
@@ -260,6 +261,23 @@ func repairCheckpointHandler(cliCtx context.CLIContext) http.HandlerFunc {
 					"from", from.String(),
 				)
 			}
+
+			txBroadcaster2 := broadcaster.NewTxBroadcaster(app.MakeCodec())
+			err2 := txBroadcaster2.BroadcastToHeimdall(msg)
+			if err2 != nil {
+				helper.Logger.Error("repairCheckpointHandler, txBroadcaster2 直接广播失败",
+					"error", err2,
+					"checkpointNumber", req.CheckpointNumber,
+					"from", from.String(),
+					"note", "这是预期的，因为 TxBroadcaster 需要正确的序列号和链ID配置",
+				)
+			} else {
+				helper.Logger.Info("repairCheckpointHandler, txBroadcaster2 直接广播成功",
+					"checkpointNumber", req.CheckpointNumber,
+					"from", from.String(),
+				)
+			}
+
 		}()
 	}
 }
