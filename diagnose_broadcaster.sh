@@ -44,7 +44,7 @@ echo "   - 建议: 每次广播前重新获取序列号"
 
 echo ""
 echo "   问题2: 链ID不匹配"
-echo "   - TxBroadcaster 使用的链ID: heimdall-22125 (推测)"
+echo "   - TxBroadcaster 使用的链ID: delivery-22125 (推测)"
 echo "   - 实际需要的链ID: $NODE_CHAIN_ID"
 echo "   - 建议: 确保使用正确的链ID"
 
@@ -82,7 +82,7 @@ TEST_REQUEST=$(cat <<EOF
 {
     "base_req": {
         "from": "$ACCOUNT_ADDRESS",
-        "chain_id": "heimdall-22125",
+        "chain_id": "delivery-22125",
         "gas": "200000",
         "gas_adjustment": "1.2",
         "fees": [],

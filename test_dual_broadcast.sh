@@ -18,7 +18,7 @@ REQUEST_BODY=$(cat <<EOF
 {
     "base_req": {
         "from": "$ACCOUNT_ADDRESS",
-        "chain_id": "heimdall-22125",
+        "chain_id": "delivery-22125",
         "gas": "200000",
         "gas_adjustment": "1.2",
         "fees": [],
@@ -90,7 +90,7 @@ REPAIR_REQUEST_BODY=$(cat <<EOF
 {
     "base_req": {
         "from": "$ACCOUNT_ADDRESS",
-        "chain_id": "heimdall-22125",
+        "chain_id": "delivery-22125",
         "gas": "200000",
         "gas_adjustment": "1.2",
         "fees": [],
