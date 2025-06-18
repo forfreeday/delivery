@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -301,8 +302,8 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 		var accountResponse struct {
 			Result struct {
 				Value struct {
-					AccountNumber uint64 `json:"account_number"`
-					Sequence      uint64 `json:"sequence"`
+					AccountNumber string `json:"account_number"`
+					Sequence      string `json:"sequence"`
 				} `json:"value"`
 			} `json:"result"`
 		}
@@ -313,10 +314,25 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			return
 		}
 
+		// 转换字符串为uint64
+		accountNumber, err := strconv.ParseUint(accountResponse.Result.Value.AccountNumber, 10, 64)
+		if err != nil {
+			helper.Logger.Error("repairCheckpointTestHandler, 转换账户号失败", "error", err, "accountNumber", accountResponse.Result.Value.AccountNumber)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, "转换账户号失败")
+			return
+		}
+
+		sequence, err := strconv.ParseUint(accountResponse.Result.Value.Sequence, 10, 64)
+		if err != nil {
+			helper.Logger.Error("repairCheckpointTestHandler, 转换序列号失败", "error", err, "sequence", accountResponse.Result.Value.Sequence)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, "转换序列号失败")
+			return
+		}
+
 		// 记录账户信息
 		helper.Logger.Info("repairCheckpointTestHandler, 获取到账户信息",
-			"accountNumber", accountResponse.Result.Value.AccountNumber,
-			"sequence", accountResponse.Result.Value.Sequence,
+			"accountNumber", accountNumber,
+			"sequence", sequence,
 		)
 
 		// 创建自定义的广播逻辑
@@ -326,8 +342,8 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 		// 创建 TxBuilder 并设置正确的账户信息
 		txBldr := authTypes.NewTxBuilderFromCLI().
 			WithTxEncoder(txEncoder).
-			WithAccountNumber(accountResponse.Result.Value.AccountNumber).
-			WithSequence(accountResponse.Result.Value.Sequence).
+			WithAccountNumber(accountNumber).
+			WithSequence(sequence).
 			WithChainID(chainID)
 
 		// 使用 helper.BuildAndBroadcastMsgs 进行广播
@@ -350,8 +366,8 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
 			"txHash", txResponse.TxHash,
-			"accountNumber", accountResponse.Result.Value.AccountNumber,
-			"sequence", accountResponse.Result.Value.Sequence,
+			"accountNumber", accountNumber,
+			"sequence", sequence,
 		)
 
 		// 返回成功响应
@@ -361,8 +377,8 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			"checkpoint_number": req.CheckpointNumber,
 			"test_message":      req.TestMessage,
 			"tx_hash":           txResponse.TxHash,
-			"account_number":    accountResponse.Result.Value.AccountNumber,
-			"sequence":          accountResponse.Result.Value.Sequence,
+			"account_number":    accountNumber,
+			"sequence":          sequence,
 		})
 	}
 }
