@@ -25,6 +25,14 @@ func registerTxRoutes(cliCtx context.CLIContext, r *mux.Router) {
 	r.HandleFunc("/checkpoint/repair", repairCheckpointHandler(cliCtx)).Methods("POST")
 	r.HandleFunc("/checkpoint/repair-test", repairCheckpointTestHandler(cliCtx)).Methods("POST")
 
+	// 添加新的修复版本路由
+	r.HandleFunc("/checkpoint/repair-fixed", repairCheckpointHandlerFixed(cliCtx)).Methods("POST")
+	r.HandleFunc("/checkpoint/repair-test-fixed", repairCheckpointTestHandlerFixed(cliCtx)).Methods("POST")
+
+	// 添加新的优化版本路由
+	r.HandleFunc("/checkpoint/repair-optimized", repairCheckpointHandlerOptimized(cliCtx)).Methods("POST")
+	r.HandleFunc("/checkpoint/repair-test-optimized", repairCheckpointTestHandlerOptimized(cliCtx)).Methods("POST")
+
 	r.HandleFunc("/your-module/test", myTestHandlerFn(cliCtx)).Methods("POST")
 }
 
