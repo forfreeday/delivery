@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
+	"github.com/maticnetwork/heimdall/bridge/setu/broadcaster"
 	"github.com/maticnetwork/heimdall/checkpoint/types"
 	restClient "github.com/maticnetwork/heimdall/client/rest"
 	"github.com/maticnetwork/heimdall/helper"
@@ -187,7 +188,7 @@ func repairCheckpointHandler(cliCtx context.CLIContext) http.HandlerFunc {
 		}
 
 		// 记录开始操作的日志
-		helper.Logger.Info("repairCheckpointHandler, 开始广播补录消息",
+		helper.Logger.Info("repairCheckpointHandler, 开始处理补录消息",
 			"checkpointNumber", req.CheckpointNumber,
 			"from", from.String(),
 		)
@@ -217,15 +218,36 @@ func repairCheckpointHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			return
 		}
 
-		// 使用标准的 REST 方式生成未签名交易，而不是直接广播
-		// 这样可以避免序列号和链ID的问题
-		helper.Logger.Info("repairCheckpointHandler, 生成未签名交易",
+		// 方式1: 使用标准的 REST 方式生成未签名交易
+		helper.Logger.Info("repairCheckpointHandler, 方式1: 生成未签名交易",
 			"checkpointNumber", req.CheckpointNumber,
 			"from", from.String(),
 		)
 
 		// 使用 WriteGenerateStdTxResponse 生成未签名交易
 		restClient.WriteGenerateStdTxResponse(w, cliCtx, req.BaseReq, []sdk.Msg{msg})
+
+		// 方式2: 尝试使用 TxBroadcaster 直接广播（异步，不影响响应）
+		go func() {
+			helper.Logger.Info("repairCheckpointHandler, 方式2: 尝试直接广播",
+				"checkpointNumber", req.CheckpointNumber,
+				"from", from.String(),
+			)
+
+			// 创建 TxBroadcaster 实例
+			txBroadcaster := broadcaster.NewTxBroadcaster(cliCtx.Codec)
+
+			// 使用 TxBroadcaster 广播消息到 Heimdall
+			err := txBroadcaster.BroadcastToHeimdall(msg)
+			if err != nil {
+				helper.Logger.Error("repairCheckpointHandler, 直接广播失败", "error", err)
+			} else {
+				helper.Logger.Info("repairCheckpointHandler, 直接广播成功",
+					"checkpointNumber", req.CheckpointNumber,
+					"from", from.String(),
+				)
+			}
+		}()
 	}
 }
 
@@ -287,9 +309,8 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			return
 		}
 
-		// 使用标准的 REST 方式生成未签名交易，而不是直接广播
-		// 这样可以避免序列号和链ID的问题
-		helper.Logger.Info("repairCheckpointTestHandler, 生成未签名交易",
+		// 方式1: 使用标准的 REST 方式生成未签名交易
+		helper.Logger.Info("repairCheckpointTestHandler, 方式1: 生成未签名交易",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
 			"from", from.String(),
@@ -297,6 +318,30 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 
 		// 使用 WriteGenerateStdTxResponse 生成未签名交易
 		restClient.WriteGenerateStdTxResponse(w, cliCtx, req.BaseReq, []sdk.Msg{msg})
+
+		// 方式2: 尝试使用 TxBroadcaster 直接广播（异步，不影响响应）
+		go func() {
+			helper.Logger.Info("repairCheckpointTestHandler, 方式2: 尝试直接广播",
+				"checkpointNumber", req.CheckpointNumber,
+				"testMessage", req.TestMessage,
+				"from", from.String(),
+			)
+
+			// 创建 TxBroadcaster 实例
+			txBroadcaster := broadcaster.NewTxBroadcaster(cliCtx.Codec)
+
+			// 使用 TxBroadcaster 广播消息到 Heimdall
+			err := txBroadcaster.BroadcastToHeimdall(msg)
+			if err != nil {
+				helper.Logger.Error("repairCheckpointTestHandler, 直接广播失败", "error", err)
+			} else {
+				helper.Logger.Info("repairCheckpointTestHandler, 直接广播成功",
+					"checkpointNumber", req.CheckpointNumber,
+					"testMessage", req.TestMessage,
+					"from", from.String(),
+				)
+			}
+		}()
 	}
 }
 
