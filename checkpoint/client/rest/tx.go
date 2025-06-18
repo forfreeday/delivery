@@ -1,12 +1,15 @@
 package rest
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
 
+	authTypes "github.com/maticnetwork/heimdall/auth/types"
 	"github.com/maticnetwork/heimdall/checkpoint/types"
 	restClient "github.com/maticnetwork/heimdall/client/rest"
 	"github.com/maticnetwork/heimdall/helper"
@@ -285,22 +288,81 @@ func repairCheckpointTestHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			"testMessage", req.TestMessage,
 		)
 
-		// 直接返回成功响应，不进行广播
-		// 因为bridge的TxBroadcaster使用的是自己的账户信息，与请求中的账户不匹配
-		// 这里我们暂时返回成功，实际的广播需要在其他地方实现
-		helper.Logger.Info("repairCheckpointTestHandler, 跳过广播，直接返回成功",
+		// 获取账户信息
+		accountURL := fmt.Sprintf("http://localhost:1317/auth/accounts/%s", from.String())
+		resp, err := http.Get(accountURL)
+		if err != nil {
+			helper.Logger.Error("repairCheckpointTestHandler, 获取账户信息失败", "error", err)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, "获取账户信息失败")
+			return
+		}
+		defer resp.Body.Close()
+
+		var accountResponse struct {
+			Result struct {
+				Value struct {
+					AccountNumber uint64 `json:"account_number"`
+					Sequence      uint64 `json:"sequence"`
+				} `json:"value"`
+			} `json:"result"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&accountResponse); err != nil {
+			helper.Logger.Error("repairCheckpointTestHandler, 解析账户信息失败", "error", err)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, "解析账户信息失败")
+			return
+		}
+
+		// 记录账户信息
+		helper.Logger.Info("repairCheckpointTestHandler, 获取到账户信息",
+			"accountNumber", accountResponse.Result.Value.AccountNumber,
+			"sequence", accountResponse.Result.Value.Sequence,
+		)
+
+		// 创建自定义的广播逻辑
+		txEncoder := helper.GetTxEncoder(cliCtx.Codec)
+		chainID := helper.GetGenesisDoc().ChainID
+
+		// 创建 TxBuilder 并设置正确的账户信息
+		txBldr := authTypes.NewTxBuilderFromCLI().
+			WithTxEncoder(txEncoder).
+			WithAccountNumber(accountResponse.Result.Value.AccountNumber).
+			WithSequence(accountResponse.Result.Value.Sequence).
+			WithChainID(chainID)
+
+		// 使用 helper.BuildAndBroadcastMsgs 进行广播
+		txResponse, err := helper.BuildAndBroadcastMsgs(cliCtx, txBldr, []sdk.Msg{msg})
+		if err != nil {
+			helper.Logger.Error("repairCheckpointTestHandler, 广播失败", "error", err)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// 检查广播结果
+		if txResponse.Code != 0 {
+			helper.Logger.Error("repairCheckpointTestHandler, 广播失败", "code", txResponse.Code, "log", txResponse.RawLog)
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("广播失败: %s", txResponse.RawLog))
+			return
+		}
+
+		// 记录成功日志
+		helper.Logger.Info("repairCheckpointTestHandler, 广播成功",
 			"checkpointNumber", req.CheckpointNumber,
 			"testMessage", req.TestMessage,
-			"note", "bridge TxBroadcaster使用自己的账户信息，与请求账户不匹配",
+			"txHash", txResponse.TxHash,
+			"accountNumber", accountResponse.Result.Value.AccountNumber,
+			"sequence", accountResponse.Result.Value.Sequence,
 		)
 
 		// 返回成功响应
 		rest.PostProcessResponse(w, cliCtx, map[string]interface{}{
 			"success":           true,
-			"message":           "测试消息处理成功（跳过广播）",
+			"message":           "测试消息广播成功",
 			"checkpoint_number": req.CheckpointNumber,
 			"test_message":      req.TestMessage,
-			"note":              "bridge TxBroadcaster使用自己的账户信息，与请求账户不匹配，跳过广播",
+			"tx_hash":           txResponse.TxHash,
+			"account_number":    accountResponse.Result.Value.AccountNumber,
+			"sequence":          accountResponse.Result.Value.Sequence,
 		})
 	}
 }
